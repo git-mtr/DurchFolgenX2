@@ -131,22 +131,24 @@
       return;
     }
 
-    aufgaben = [];
+    let moeglicheAufgaben = [];
     for (let dividend = 1; dividend <= 100; dividend++) {
       for (let divisor of aktiveMalfolgen) {
         if (dividend % divisor === 0 && dividend > divisor && dividend >= min && dividend <= max * 10) {
-          aufgaben.push({ dividend, divisor });
+          moeglicheAufgaben.push({ dividend, divisor });
         }
       }
     }
 
-    if (aufgaben.length < maxAufgaben) {
-      alert("Nicht genug Aufgaben verfügbar mit dieser Auswahl. Bitte erweitere den Bereich oder wähle mehr Divisoren.");
-      return;
+    if (moeglicheAufgaben.length >= maxAufgaben) {
+      aufgaben = moeglicheAufgaben.sort(() => 0.5 - Math.random()).slice(0, maxAufgaben);
+    } else {
+      aufgaben = [];
+      for (let i = 0; i < maxAufgaben; i++) {
+        const zufall = moeglicheAufgaben[Math.floor(Math.random() * moeglicheAufgaben.length)];
+        aufgaben.push(zufall);
+      }
     }
-
-    // Shuffle Aufgaben
-    aufgaben = aufgaben.sort(() => 0.5 - Math.random()).slice(0, maxAufgaben);
 
     aktuelleAufgabe = 0;
     punkte = 0;
