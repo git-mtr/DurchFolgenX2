@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Divisionstrainer</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 40px;
+    }
+    .zeile {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    input[type="number"] {
+      padding: 10px;
+      font-size: 18px;
+      width: 80px;
+    }
+    .aufgabe {
+      font-size: 40px;
+      margin-bottom: 10px;
+      white-space: pre-line;
+    }
+    .emoji {
+      font-size: 48px;
+      margin-top: 20px;
+    }
+    .timer, .punkte, .auswertung, .gesamtzeit, .fehlerliste {
+      font-size: 16px;
+      margin-top: 10px;
+      color: gray;
+    }
+    .pokal {
+      font-size: 80px;
+      margin-top: 30px;
+    }
+    .checkboxen {
+      margin-bottom: 20px;
+    }
+    .checkboxen label {
+      margin-right: 10px;
+      font-size: 18px;
+    }
+    .schwierigkeit {
+      margin-top: 10px;
+      margin-bottom: 20px;
+      font-size: 18px;
+    }
+    .steuerung button {
+      margin: 5px;
+      padding: 10px 20px;
+      font-size: 16px;
+    }
+    @media (max-width: 600px) {
+      body { padding: 10px; }
+      .aufgabe { font-size: 28px; }
+      input[type="number"] { width: 60px; font-size: 16px; }
+      .checkboxen label { display: inline-block; width: 45%; margin-bottom: 5px; }
+    }
+  </style>
+</head>
+<body>
+
+<h1>Divisionstrainer</h1>
+
+<div class="checkboxen" id="checkboxenContainer"></div>
+
+<div class="schwierigkeit">
+  Divisionen mit Dividenden aus Bereich:
+  <select id="dividendBereich">
+    <option value="1-3">1 bis 3</option>
+    <option value="4-6">4 bis 6</option>
+    <option value="7-10">7 bis 10</option>
+    <option value="1-10">1 bis 10</option>
+  </select>
+</div>
+
+<div class="steuerung">
+  <button onclick="startSpiel()">Spiel starten</button>
+  <button onclick="pauseSpiel()" id="pauseButton" disabled>Pausieren</button>
+  <button onclick="fortsetzenSpiel()" id="fortsetzenButton" style="display:none;">Fortsetzen</button>
+</div>
+
+<div class="aufgabe" id="aufgabe"></div>
+<div class="zeile">
+  <input type="number" id="antwort" placeholder="Antwort" onkeydown="if(event.key === 'Enter')pruefen()" disabled />
+  <button onclick="pruefen()" disabled>Prüfen</button>
+</div>
+<div class="emoji" id="emoji"></div>
+<div class="timer" id="zeit">Zeit: 0 Sek.</div>
+<div class="punkte" id="punkte">Punkte: 0</div>
+<div class="auswertung" id="auswertung"></div>
+<div class="pokal" id="pokal"></div>
+<div class="gesamtzeit" id="gesamtzeit"></div>
+<div class="fehlerliste" id="fehlerliste"></div>
+
+<script>
+  const checkboxContainer = document.getElementById("checkboxenContainer");
+  for (let i = 1; i <= 10; i++) {
+    const label = document.createElement("label");
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.value = i;
+    checkbox.checked = true;
+    label.appendChild(checkbox);
+    label.append(` ${i}`);
+    checkboxContainer.appendChild(label);
+  }
+
+  let aufgaben = [];
+  let aktuelleAufgabe = 0;
+  let punkte = 0, richtige = 0, falsche = 0;
+  let gesamtStartZeit = 0, gesamtPauseZeit = 0, pauseStart = null, spielPause = false;
+  const maxAufgaben = 20;
+  let aktuelleLoesung = null;
+  let falscheAufgaben = [];
+
+  function startSpiel() {
+    const [min, max] = document.getElementById("dividendBereich").value.split("-").map(Number);
+    const aktiveMalfolgen = Array.from(document.querySelectorAll(".checkboxen input:checked")).map(c => parseInt(c.value));
+
+    if (aktiveMalfolgen.length === 0) {
+      alert("Bitte wähle mindestens einen Divisor aus.");
+      return;
+    }
+
+    aufgaben = [];
+    for (let dividend = 1; dividend <= 100; dividend++) {
+      for (let divisor of aktiveMalfolgen) {
+        if (dividend % divisor === 0 && dividend > divisor && dividend >= min && dividend <= max * 10) {
+          aufgaben.push({ dividend, divisor });
+        }
+      }
+    }
+
+    if (aufgaben.length < maxAufgaben) {
+      alert("Nicht genug Aufgaben verfügbar mit dieser Auswahl. Bitte erweitere den Bereich oder wähle mehr Divisoren.");
+      return;
+    }
+
+    // Shuffle Aufgaben
+    aufgaben = aufgaben.sort(() => 0.5 - Math.random()).slice(0, maxAufgaben);
+
+    aktuelleAufgabe = 0;
+    punkte = 0;
+    richtige = 0;
+    falsche = 0;
+    falscheAufgaben = [];
+    gesamtPauseZeit = 0;
+    spielPause = false;
+    pauseStart = null;
+    document.getElementById("punkte").textContent = "Punkte: 0";
+    document.getElementById("auswertung").textContent = "";
+    document.getElementById("pokal").textContent = "";
+    document.getElementById("gesamtzeit").textContent = "";
+    document.getElementById("fehlerliste").textContent = "";
+    document.getElementById("antwort").style.display = "inline";
+    document.querySelector("button[onclick='pruefen()']").style.display = "inline";
+    document.getElementById("antwort").disabled = false;
+    document.querySelector("button[onclick='pruefen()']").disabled = false;
+    document.getElementById("pauseButton").disabled = false;
+    document.getElementById("fortsetzenButton").style.display = "none";
+    gesamtStartZeit = Date.now();
+    naechsteAufgabe();
+  }
+
+  function pauseSpiel() {
+    spielPause = true;
+    pauseStart = Date.now();
+    document.getElementById("pauseButton").style.display = "none";
+    document.getElementById("fortsetzenButton").style.display = "inline";
+    document.getElementById("antwort").disabled = true;
+    document.querySelector("button[onclick='pruefen()']").disabled = true;
+  }
+
+  function fortsetzenSpiel() {
+    spielPause = false;
+    gesamtPauseZeit += Date.now() - pauseStart;
+    pauseStart = null;
+    document.getElementById("pauseButton").style.display = "inline";
+    document.getElementById("fortsetzenButton").style.display = "none";
+    document.getElementById("antwort").disabled = false;
+    document.querySelector("button[onclick='pruefen()']").disabled = false;
+    document.getElementById("antwort").focus();
+  }
+
+  function naechsteAufgabe() {
+    if (aktuelleAufgabe >= aufgaben.length) {
+      beendeSpiel();
+      return;
+    }
+
+    const aufgabe = aufgaben[aktuelleAufgabe++];
+    aktuelleLoesung = aufgabe.dividend / aufgabe.divisor;
+    document.getElementById("aufgabe").textContent = `Aufgabe ${aktuelleAufgabe}/${maxAufgaben}:\n\n${aufgabe.dividend} ÷ ${aufgabe.divisor} =`;
+    document.getElementById("antwort").value = "";
+    document.getElementById("emoji").textContent = "";
+  }
+
+  function pruefen() {
+    const antwort = parseFloat(document.getElementById("antwort").value);
+    if (antwort === aktuelleLoesung) {
+      punkte++;
+      richtige++;
+      document.getElementById("emoji").textContent = "😊";
+    } else {
+      falsche++;
+      falscheAufgaben.push(`${document.getElementById("aufgabe").textContent} Deine Antwort: ${antwort} (Richtig: ${aktuelleLoesung})`);
+      document.getElementById("emoji").textContent = "😞";
+    }
+
+    document.getElementById("punkte").textContent = `Punkte: ${punkte}`;
+    document.getElementById("fehlerliste").textContent = `Falsche Aufgaben:\n${falscheAufgaben.join("\n")}`;
+    setTimeout(naechsteAufgabe, 1000);
+  }
+
+  function beendeSpiel() {
+    document.getElementById("antwort").style.display = "none";
+    document.querySelector("button[onclick='pruefen()']").style.display = "none";
+    document.getElementById("pauseButton").disabled = true;
+
+    const gesamtZeit = (Date.now() - gesamtStartZeit - gesamtPauseZeit) / 1000;
+    document.getElementById("gesamtzeit").textContent = `Gesamtzeit: ${gesamtZeit.toFixed(2)} Sekunden`;
+
+    if (punkte >= maxAufgaben / 2) {
+      document.getElementById("pokal").textContent = "🏆 Du hast gewonnen!";
+    } else {
+      document.getElementById("pokal").textContent = "😞 Versuch es noch einmal!";
+    }
+  }
+</script>
+
+</body>
+</html>
