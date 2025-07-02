@@ -48,11 +48,6 @@
       margin-right: 10px;
       font-size: 18px;
     }
-    .schwierigkeit {
-      margin-top: 10px;
-      margin-bottom: 20px;
-      font-size: 18px;
-    }
     .steuerung button {
       margin: 5px;
       padding: 10px 20px;
@@ -71,16 +66,6 @@
 <h1>Divisionstrainer</h1>
 
 <div class="checkboxen" id="checkboxenContainer"></div>
-
-<div class="schwierigkeit">
-  Divisionen mit Dividenden aus Bereich:
-  <select id="dividendBereich">
-    <option value="1-3">1 bis 3</option>
-    <option value="4-6">4 bis 6</option>
-    <option value="7-10">7 bis 10</option>
-    <option value="1-10">1 bis 10</option>
-  </select>
-</div>
 
 <div class="steuerung">
   <button onclick="startSpiel()">Spiel starten</button>
@@ -124,7 +109,7 @@
   let falscheAufgaben = [];
 
   function startSpiel() {
-    const [min, max] = document.getElementById("dividendBereich").value.split("-").map(Number);
+    // Alle Zahlen von 1 bis 10 als Divisoren verwenden
     const aktiveMalfolgen = Array.from(document.querySelectorAll(".checkboxen input:checked")).map(c => parseInt(c.value));
 
     if (aktiveMalfolgen.length === 0) {
@@ -135,9 +120,7 @@
     let moeglicheAufgaben = [];
     for (let divisor of aktiveMalfolgen) {
       for (let dividend = divisor; dividend <= divisor * 10; dividend += divisor) {
-        if (dividend >= min && dividend <= max * 10) {
-          moeglicheAufgaben.push({ dividend, divisor });
-        }
+        moeglicheAufgaben.push({ dividend, divisor });
       }
     }
 
